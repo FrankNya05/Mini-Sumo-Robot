@@ -6,6 +6,7 @@
 #include "SensorManger.hpp"
 #include "StrategyManager.hpp"
 #include "CommunicationManager.hpp"
+#include "TelemetrySerializer.hpp"
 #include "CommandParser.hpp"
 #include "Queues.hpp"
 #include "Encoder.hpp"
@@ -475,12 +476,23 @@ void taskComm(void* pvParameters)
             float tofFLmm = tofFL.isValid ? tofFL.value.scalar : -1.0f;
             float tofFRmm = tofFR.isValid ? tofFR.value.scalar : -1.0f;
 
+            // État courant — marqueur pour délimiter début/fin de test côté DB
+            const char* stateStr;
+            switch (ctx.getState()) {
+                case RobotConstants::State::STANDBY: stateStr = "STANDBY"; break;
+                case RobotConstants::State::SEARCH:  stateStr = "SEARCH";  break;
+                case RobotConstants::State::ATTACK:  stateStr = "ATTACK";  break;
+                case RobotConstants::State::EVADE:   stateStr = "EVADE";   break;
+                default:                             stateStr = "UNKNOWN";
+            }
+
             char buf[800];
             snprintf(buf, sizeof(buf),
                 "{"
                     "\"type\":\"TELEMETRY\","
                     "\"payload\":{"
                         "\"ts\":%lu,"
+                        "\"state\":\"%s\","
                         "\"battery\":{"
                             "\"voltage\":%.2f,"
                             "\"percent\":%d,"
@@ -526,6 +538,7 @@ void taskComm(void* pvParameters)
                     "}"
                 "}",
                 (unsigned long)millis(),
+                stateStr,
                 batVoltage,
                 batPercent,
                 batCritical  ? "true" : "false",
@@ -719,7 +732,8 @@ void taskEncoders(void* pvParameters)
 //  Paramètres de taskCommand
 // ───────────────────────────────────────────────────────────────
 struct CommandTaskParams {
-    StrategyManager* manager;
+    StrategyManager*      manager;
+    CommunicationManager* comm;    // pour publier des LOG (ex: résultat test WHEEL)
 
     // Callbacks vers main.cpp (résolution des dépendances locales)
     void (*onStrategy)(const char* name);       // STRATEGY:xxx
@@ -727,6 +741,12 @@ struct CommandTaskParams {
     void (*onPidKp)(float v);                   // PID:KP     (moteurs gauche+droit)
     void (*onPidKi)(float v);                   // PID:KI
     void (*onPidKd)(float v);                   // PID:KD
+    void (*onPidLeftKp)(float v);                // PID:LEFT:KP  (moteur gauche seul)
+    void (*onPidLeftKi)(float v);                // PID:LEFT:KI
+    void (*onPidLeftKd)(float v);                // PID:LEFT:KD
+    void (*onPidRightKp)(float v);               // PID:RIGHT:KP (moteur droit seul)
+    void (*onPidRightKi)(float v);               // PID:RIGHT:KI
+    void (*onPidRightKd)(float v);               // PID:RIGHT:KD
     void (*onPidYawKp)(float v);               // PID:YAW:KP (correcteur de cap)
     void (*onPidYawKi)(float v);               // PID:YAW:KI
     void (*onPidYawKd)(float v);               // PID:YAW:KD
@@ -806,6 +826,36 @@ void taskCommand(void* pvParameters)
                 if (p->onPidKd) p->onPidKd(cmd.pidValue);
                 break;
 
+            case CommandType::PID_LEFT_KP:
+                LOGF("[CMD] PID LEFT KP = %.3f\n", cmd.pidValue);
+                if (p->onPidLeftKp) p->onPidLeftKp(cmd.pidValue);
+                break;
+
+            case CommandType::PID_LEFT_KI:
+                LOGF("[CMD] PID LEFT KI = %.3f\n", cmd.pidValue);
+                if (p->onPidLeftKi) p->onPidLeftKi(cmd.pidValue);
+                break;
+
+            case CommandType::PID_LEFT_KD:
+                LOGF("[CMD] PID LEFT KD = %.3f\n", cmd.pidValue);
+                if (p->onPidLeftKd) p->onPidLeftKd(cmd.pidValue);
+                break;
+
+            case CommandType::PID_RIGHT_KP:
+                LOGF("[CMD] PID RIGHT KP = %.3f\n", cmd.pidValue);
+                if (p->onPidRightKp) p->onPidRightKp(cmd.pidValue);
+                break;
+
+            case CommandType::PID_RIGHT_KI:
+                LOGF("[CMD] PID RIGHT KI = %.3f\n", cmd.pidValue);
+                if (p->onPidRightKi) p->onPidRightKi(cmd.pidValue);
+                break;
+
+            case CommandType::PID_RIGHT_KD:
+                LOGF("[CMD] PID RIGHT KD = %.3f\n", cmd.pidValue);
+                if (p->onPidRightKd) p->onPidRightKd(cmd.pidValue);
+                break;
+
             case CommandType::PID_YAW_KP:
                 LOGF("[CMD] PID YAW KP = %.3f\n", cmd.pidValue);
                 if (p->onPidYawKp) p->onPidYawKp(cmd.pidValue);
@@ -844,12 +894,85 @@ void taskCommand(void* pvParameters)
                             if (sqrtf(dx * dx + dy * dy) >= step.targetMm) break;
                             vTaskDelay(pdMS_TO_TICKS(10));
                         }
+                    } else if (step.targetRad > 0.0f) {
+                        // Arrêt sur rotation EKF cumulée (timeout 8s) — accumule
+                        // les deltas θ SIGNÉS (pas fabsf) à chaque tick : le sens
+                        // de rotation est fixe ici, donc le bruit EKF symétrique
+                        // s'annule au lieu de gonfler artificiellement le total.
+                        float    prevTheta = ctx.getPose().theta;
+                        float    accum     = 0.0f;
+                        const uint32_t tMax = millis() + 8000;
+                        while (millis() < tMax) {
+                            vTaskDelay(pdMS_TO_TICKS(10));
+                            float theta = ctx.getPose().theta;
+                            float dTheta = theta - prevTheta;
+                            while (dTheta >  (float)M_PI) dTheta -= 2.0f * (float)M_PI;
+                            while (dTheta < -(float)M_PI) dTheta += 2.0f * (float)M_PI;
+                            accum     += dTheta;
+                            prevTheta  = theta;
+                            LOGF("[SEQ] rotation cumulee = %.1f deg\n", fabsf(accum) * RAD_TO_DEG);
+                            if (fabsf(accum) >= step.targetRad) break;
+                        }
                     } else {
                         vTaskDelay(pdMS_TO_TICKS(step.durationMs));
                     }
                 }
                 ctx.setMotorSpeeds({});
                 break;
+
+            // ── Rotation d'une roue seule (test/calibration) — s'arrête sur
+            // le compteur d'impulsions ABSOLU de cette roue (totalCount,
+            // jamais remis à zéro par taskEncoders → aucune interférence
+            // avec l'intégration EKF qui, elle, consomme getAndReset()). ──
+            case CommandType::WHEEL_LEFT:
+            case CommandType::WHEEL_RIGHT: {
+                static constexpr int      WHEEL_ROTATE_SPEED = 150;
+                static constexpr uint32_t WHEEL_TIMEOUT_MS   = 8000;
+
+                const bool isLeft = (cmd.type == CommandType::WHEEL_LEFT);
+                LOGF("[CMD] WHEEL %s %.1f deg\n", isLeft ? "LEFT" : "RIGHT", cmd.wheelDeg);
+                ctx.setState(RobotConstants::State::STANDBY);
+                // Le flag LQR persiste depuis la dernière stratégie active (STANDBY
+                // ne le remet pas à zéro). Sans ce reset, leftSpeed != rightSpeed
+                // ferait basculer taskEncoders sur la correction LQR "courbure"
+                // (gyro) — polluant un test censé isoler une seule roue.
+                ctx.setLqrEnabled(false);
+
+                SensorPosition side         = isLeft ? SensorPosition::LEFT : SensorPosition::RIGHT;
+                const int32_t  startCount   = ctx.getEncoderData(side).totalCount;
+                // roundf (pas de troncature) : sans ça, toute valeur < DEG_PER_PULSE
+                // (~0.257°) donnerait 0 pulse cible → arrêt immédiat, sans bouger.
+                const int32_t  targetPulses = (int32_t)roundf(fabsf(cmd.wheelDeg) / RobotConstants::DEG_PER_PULSE);
+                const int      speed        = (cmd.wheelDeg >= 0.0f) ? WHEEL_ROTATE_SPEED : -WHEEL_ROTATE_SPEED;
+
+                ctx.setMotorSpeeds(isLeft ? RobotConstants::ActionCommand{ speed, 0 }
+                                          : RobotConstants::ActionCommand{ 0, speed });
+
+                const uint32_t tMax  = millis() + WHEEL_TIMEOUT_MS;
+                int32_t        delta = 0;
+                uint8_t        tick  = 0;
+                while (millis() < tMax) {
+                    delta = ctx.getEncoderData(side).totalCount - startCount;
+                    if ((++tick % 10) == 0)  // toutes les ~100ms — évite de saturer le port série
+                        LOGF("[WHEEL] en cours : %.1f deg (cible %.1f)\n",
+                             fabsf(delta) * RobotConstants::DEG_PER_PULSE, fabsf(cmd.wheelDeg));
+                    if (labs((long)delta) >= targetPulses) break;
+                    vTaskDelay(pdMS_TO_TICKS(10));
+                }
+                ctx.setMotorSpeeds({});
+                // Résultat final mesuré par l'encodeur — à comparer avec le rapporteur.
+                {
+                    const float measuredDeg = fabsf(delta) * RobotConstants::DEG_PER_PULSE;
+                    LOGF("[WHEEL] TERMINE : demande=%.1f deg, encodeur=%.1f deg (%ld pulses)\n",
+                         cmd.wheelDeg, measuredDeg, (long)delta);
+                    char logMsg[96];
+                    snprintf(logMsg, sizeof(logMsg),
+                             "WHEEL %s: demande=%.1f deg, encodeur=%.1f deg",
+                             isLeft ? "LEFT" : "RIGHT", cmd.wheelDeg, measuredDeg);
+                    if (p->comm) p->comm->send(TelemetrySerializer::buildLog(logMsg));
+                }
+                break;
+            }
 
             default:
                 LOGF("[CMD] Commande inconnue : %s\n", rawCmd);

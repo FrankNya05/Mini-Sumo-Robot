@@ -23,10 +23,15 @@
 //    MOTOR:L:<v>:R:<v>             ex. MOTOR:L:150:R:150  (-255 à 255)
 //    MOTOR:STOP                    alias STOP
 //
-//  PID vitesse roues (asservissement gauche/droite)
+//  PID vitesse roues — les deux roues à la fois
 //    PID:KP:<v>                    ex. PID:KP:2.0   (défaut : 2.0)
 //    PID:KI:<v>                    ex. PID:KI:0.15  (défaut : 0.15)
 //    PID:KD:<v>                    ex. PID:KD:0.0   (défaut : 0.0)
+//
+//  PID vitesse roues — individuellement
+//    PID:LEFT:KP:<v>  / PID:RIGHT:KP:<v>
+//    PID:LEFT:KI:<v>  / PID:RIGHT:KI:<v>
+//    PID:LEFT:KD:<v>  / PID:RIGHT:KD:<v>
 //
 //  PID cap / tenue de ligne droite (pidYaw)
 //    PID:YAW:KP:<v>                ex. PID:YAW:KP:5.0   (défaut : 5.0)
@@ -38,6 +43,10 @@
 //
 //  Séquences prédéfinies
 //    SEQ:<nom>                     ex. SEQ:SPIN_LEFT_90
+//
+//  Rotation d'une roue seule (test/calibration encodeur)
+//    WHEEL:LEFT:<deg>              ex. WHEEL:LEFT:180   (180° roue gauche)
+//    WHEEL:RIGHT:<deg>             ex. WHEEL:RIGHT:-90  (négatif = sens inverse)
 // ═══════════════════════════════════════════════════════════════
 
 enum class CommandType : uint8_t {
@@ -52,11 +61,19 @@ enum class CommandType : uint8_t {
     PID_KP,
     PID_KI,
     PID_KD,
+    PID_LEFT_KP,
+    PID_LEFT_KI,
+    PID_LEFT_KD,
+    PID_RIGHT_KP,
+    PID_RIGHT_KI,
+    PID_RIGHT_KD,
     PID_YAW_KP,
     PID_YAW_KI,
     PID_YAW_KD,
     LED,
-    SEQUENCE
+    SEQUENCE,
+    WHEEL_LEFT,
+    WHEEL_RIGHT
 };
 
 struct RobotCommand {
@@ -78,6 +95,9 @@ struct RobotCommand {
     // SEQUENCE
     const MoveStep* seqSteps  = nullptr;
     uint8_t         seqLength = 0;
+
+    // WHEEL_LEFT / WHEEL_RIGHT
+    float wheelDeg = 0.0f;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -130,6 +150,30 @@ inline RobotCommand parseCommand(const char* raw) {
         cmd.type     = CommandType::PID_YAW_KD;
         cmd.pidValue = atof(raw + 11);
     }
+    else if (strncmp(raw, "PID:LEFT:KP:", 12) == 0) {
+        cmd.type     = CommandType::PID_LEFT_KP;
+        cmd.pidValue = atof(raw + 12);
+    }
+    else if (strncmp(raw, "PID:LEFT:KI:", 12) == 0) {
+        cmd.type     = CommandType::PID_LEFT_KI;
+        cmd.pidValue = atof(raw + 12);
+    }
+    else if (strncmp(raw, "PID:LEFT:KD:", 12) == 0) {
+        cmd.type     = CommandType::PID_LEFT_KD;
+        cmd.pidValue = atof(raw + 12);
+    }
+    else if (strncmp(raw, "PID:RIGHT:KP:", 13) == 0) {
+        cmd.type     = CommandType::PID_RIGHT_KP;
+        cmd.pidValue = atof(raw + 13);
+    }
+    else if (strncmp(raw, "PID:RIGHT:KI:", 13) == 0) {
+        cmd.type     = CommandType::PID_RIGHT_KI;
+        cmd.pidValue = atof(raw + 13);
+    }
+    else if (strncmp(raw, "PID:RIGHT:KD:", 13) == 0) {
+        cmd.type     = CommandType::PID_RIGHT_KD;
+        cmd.pidValue = atof(raw + 13);
+    }
     else if (strncmp(raw, "PID:KP:", 7) == 0) {
         cmd.type     = CommandType::PID_KP;
         cmd.pidValue = atof(raw + 7);
@@ -152,6 +196,14 @@ inline RobotCommand parseCommand(const char* raw) {
             cmd.ledG = (uint8_t)atoi(gPtr + 3);
             cmd.ledB = (uint8_t)atoi(bPtr + 3);
         }
+    }
+    else if (strncmp(raw, "WHEEL:LEFT:", 11) == 0) {
+        cmd.type     = CommandType::WHEEL_LEFT;
+        cmd.wheelDeg = atof(raw + 11);
+    }
+    else if (strncmp(raw, "WHEEL:RIGHT:", 12) == 0) {
+        cmd.type     = CommandType::WHEEL_RIGHT;
+        cmd.wheelDeg = atof(raw + 12);
     }
     else if (strncmp(raw, "SEQ:", 4) == 0) {
         const char* seqName = raw + 4;

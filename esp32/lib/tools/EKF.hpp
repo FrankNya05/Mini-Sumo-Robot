@@ -50,12 +50,7 @@ public:
     //  @param dr  distance roue droite en mm (signée)
     void predict(float dl, float dr) {
         const float d      = (dl + dr) * 0.5f;
-        // Correction du glissement latéral pendant les virages brusques.
-        // Les roues glissent quand dl et dr sont de signe opposé (pivot sur place).
-        // Calibrer : faire tourner 360° → SLIP_FACTOR = angle_physique_deg / 360.
-        constexpr float SLIP_FACTOR = 1.0f;  // à ajuster après test 360°
-        const bool  sharpTurn = (dl * dr < 0.0f);
-        const float dTheta    = (dr - dl) / WHEELBASE * (sharpTurn ? SLIP_FACTOR : 1.0f);
+        const float dTheta = (dr - dl) / WHEELBASE;
         const float midTheta = _theta + dTheta * 0.5f;
 
         _thetaPrev = _theta;
@@ -126,6 +121,9 @@ public:
     float getUncertaintyTheta() const { return _cov[2][2]; }
 
     // ── Réglage des bruits (à calibrer selon le robot réel) ───
+    // Confiance relative Q/R : baisser _rIMU OU monter _qXY/_qTheta a le
+    // même effet (plus de poids au gyro face à l'odométrie encodeurs), et
+    // inversement — ce n'est pas une confiance absolue mais un rapport.
     void setProcessNoise(float qXY, float qTheta) { _qXY = qXY; _qTheta = qTheta; }
     void setMeasurementNoiseIMU(float rIMU)        { _rIMU = rIMU; }
 
@@ -134,8 +132,14 @@ private:
     float _x = 0.0f, _y = 0.0f, _theta = 0.0f, _thetaPrev = 0.0f;
     float _cov[3][3] = {};   // matrice de covariance (evite le conflit avec le macro _P de newlib)
 
+    // Bruit processus : confiance en la PRÉDICTION (odométrie encodeurs)
+    // entre deux mesures. Baisser _qXY/_qTheta = plus confiance aux
+    // encodeurs = le filtre laisse moins les mesures (gyro) le corriger.
     float _qXY    = 0.021f;  // bruit processus position  (mm²/mm parcouru) — calibré test droit: cross-track var=11.2mm² / 540mm
     float _qTheta = 0.1f;    // bruit processus cap       (rad²/rad tourné)
+    // Bruit mesure : confiance en la MESURE gyroscope. Baisser _rIMU =
+    // plus confiance au gyro = correction plus forte de θ à chaque cycle
+    // (voir K2 = cov[2][2] / (cov[2][2] + _rIMU) dans updateIMU()).
     float _rIMU   = 1e-4f;   // bruit mesure gyroscope (rad²) — calibré: K≈85% pendant virage rapide
 
     static constexpr float WHEELBASE = RobotConstants::WHEELBASE_MM;

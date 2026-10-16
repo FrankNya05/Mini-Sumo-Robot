@@ -37,10 +37,10 @@ namespace BattConfig {
     constexpr float ADC_MAX       = 4095.0f;     // 12 bits
 
     // Seuils LiPo 2S (Volts)
-    constexpr float VOLT_MAX      = 8.40f;       // 100%  — chargée
-    constexpr float VOLT_NOM      = 7.40f;       // ~50%  — nominale
-    constexpr float VOLT_MIN      = 6.00f;       //   0%  — vide
-    constexpr float VOLT_ALERT    = 6.60f;       // seuil d'alerte critique
+    constexpr float VOLT_MAX      = 7.40f;       // 100%  — chargée
+    constexpr float VOLT_NOM      = 5.5f;       // ~50%  — nominale
+    constexpr float VOLT_MIN      = 4.5f;       //   0%  — vide
+    constexpr float VOLT_ALERT    = 4.0f;       // seuil d'alerte critique
 
     // Filtrage ADC : nombre de lectures moyennées
     constexpr uint8_t FILTER_SAMPLES = 10;

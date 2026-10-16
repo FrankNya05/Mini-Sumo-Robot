@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <math.h>
 
 // ═══════════════════════════════════════════════════════════════
 //  Sequences.hpp — Séquences de mouvement prédéfinies
@@ -13,8 +14,9 @@
 struct MoveStep {
     int      leftSpeed;   // -255 → +255
     int      rightSpeed;  // -255 → +255
-    uint32_t durationMs;  // durée du step en ms (ignoré si targetMm > 0)
+    uint32_t durationMs;  // durée du step en ms (ignoré si targetMm ou targetRad > 0)
     float    targetMm;    // si > 0 : s'arrête quand dist EKF >= targetMm (timeout 8s)
+    float    targetRad;   // si > 0 : s'arrête quand rotation EKF cumulée >= targetRad (timeout 8s)
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -38,6 +40,13 @@ constexpr MoveStep SEQ_SPIN_360[] = {
     { 180, -180, 1600 }
 };
 constexpr uint8_t SEQ_SPIN_360_LEN = 1;
+
+// Rotation 360° sur place — arrêt sur rotation EKF réelle (pas un minutage fixe)
+// Sert à vérifier si le suivi θ EKF correspond à la rotation physique réelle.
+constexpr MoveStep SEQ_SPIN_360_EKF[] = {
+    { 180, -180, 0, 0.0f, 2.0f * (float)M_PI }
+};
+constexpr uint8_t SEQ_SPIN_360_EKF_LEN = 1;
 
 // Avancer exactement 30 cm (arrêt sur distance EKF — 282mm compense 18mm d'inertie à PWM150)
 constexpr MoveStep SEQ_FORWARD_30CM[] = {
@@ -73,6 +82,7 @@ constexpr SequenceEntry SEQUENCE_REGISTRY[] = {
     { "SPIN_LEFT_90",  SEQ_SPIN_LEFT_90,  SEQ_SPIN_LEFT_90_LEN  },
     { "SPIN_RIGHT_90", SEQ_SPIN_RIGHT_90, SEQ_SPIN_RIGHT_90_LEN },
     { "SPIN_360",      SEQ_SPIN_360,      SEQ_SPIN_360_LEN      },
+    { "SPIN_360_EKF",  SEQ_SPIN_360_EKF,  SEQ_SPIN_360_EKF_LEN  },
     { "FORWARD_30CM",  SEQ_FORWARD_30CM,  SEQ_FORWARD_30CM_LEN  },
     { "EVADE_BACK",    SEQ_EVADE_BACK,    SEQ_EVADE_BACK_LEN    },
     { "CHARGE",        SEQ_CHARGE,        SEQ_CHARGE_LEN        },

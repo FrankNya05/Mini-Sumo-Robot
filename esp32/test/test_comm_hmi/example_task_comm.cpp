@@ -163,7 +163,7 @@ static void _applyMotorCommand(const MotorCommand& cmd) {
 // SET_STRATEGY — switch active strategy (param: "AGGRESSIVE" or "DEFENSIVE")
 // RESET        — stop motors, return to STANDBY (no full reset API yet — see TODO)
 // ═════════════════════════════════════════════════════════════════════════════
-static void _applyRobotCommand(const RobotCommand& cmd) {
+static void _applyRobotCommand(const LegacyRobotCommand& cmd) {
     RobotContext& ctx = RobotContext::instance();
 
     if (cmd.command == "START") {
@@ -375,7 +375,7 @@ void setup() {
         _applyMotorCommand(cmd);
     });
 
-    s_comm.onRobotCommand([](const RobotCommand& cmd) {
+    s_comm.onRobotCommand([](const LegacyRobotCommand& cmd) {
         _applyRobotCommand(cmd);
     });
 

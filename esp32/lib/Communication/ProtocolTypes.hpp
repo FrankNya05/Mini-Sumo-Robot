@@ -74,17 +74,19 @@ struct MotorCommand {
 };
 
 // ---------------------------------------------------------------------------
-// RobotCommand
+// LegacyRobotCommand (V1 — renommé pour éviter le conflit avec le
+// RobotCommand actuel de CommandParser.hpp, qui a la même identité de
+// nom mais une structure totalement différente — voir test/test_comm_hmi)
 // ---------------------------------------------------------------------------
 // Result of parsing a CMD_ROBOT message from the HMI.
 //
 // command: "START" | "STOP" | "SET_STRATEGY" | "RESET"
 // param:   optional (e.g. "AGGRESSIVE"), empty string when unused
 // ---------------------------------------------------------------------------
-struct RobotCommand {
+struct LegacyRobotCommand {
     std::string command;
     std::string param;
 
-    RobotCommand() : command(""), param("") {}
-    RobotCommand(const std::string& c, const std::string& p) : command(c), param(p) {}
+    LegacyRobotCommand() : command(""), param("") {}
+    LegacyRobotCommand(const std::string& c, const std::string& p) : command(c), param(p) {}
 };

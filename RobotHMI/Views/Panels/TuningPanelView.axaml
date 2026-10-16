@@ -74,6 +74,183 @@
                 </StackPanel>
             </Border>
 
+            <!-- PID MOTEUR GAUCHE SEUL -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Classes="section-title" Text="PID MOTEUR GAUCHE (pidLeft seul)"/>
+                    <Separator/>
+                    <TextBlock Foreground="#78909C" FontSize="12" TextWrapping="Wrap"
+                               Text="Gain applique uniquement au moteur gauche. Valeurs initiales : KP=2.0 / KI=0.15 / KD=0.0"/>
+
+                    <!-- LEFT KP -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KP" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#00E676"/>
+                                <TextBlock Text="Proportionnel" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding LeftKpText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 2.0" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendLeftKpCommand}"
+                                    Background="#00E676" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- LEFT KI -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KI" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#00E676"/>
+                                <TextBlock Text="Integral" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding LeftKiText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 0.15" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendLeftKiCommand}"
+                                    Background="#00E676" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- LEFT KD -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KD" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#00E676"/>
+                                <TextBlock Text="Derive" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding LeftKdText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 0.0" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendLeftKdCommand}"
+                                    Background="#00E676" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </Border>
+
+            <!-- PID MOTEUR DROIT SEUL -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Classes="section-title" Text="PID MOTEUR DROIT (pidRight seul)"/>
+                    <Separator/>
+                    <TextBlock Foreground="#78909C" FontSize="12" TextWrapping="Wrap"
+                               Text="Gain applique uniquement au moteur droit. Valeurs initiales : KP=2.0 / KI=0.15 / KD=0.0"/>
+
+                    <!-- RIGHT KP -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KP" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#FF4081"/>
+                                <TextBlock Text="Proportionnel" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding RightKpText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 2.0" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendRightKpCommand}"
+                                    Background="#FF4081" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- RIGHT KI -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KI" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#FF4081"/>
+                                <TextBlock Text="Integral" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding RightKiText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 0.15" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendRightKiCommand}"
+                                    Background="#FF4081" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- RIGHT KD -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="80,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="KD" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="20" FontWeight="Bold" Foreground="#FF4081"/>
+                                <TextBlock Text="Derive" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding RightKdText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 0.0" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendRightKdCommand}"
+                                    Background="#FF4081" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Envoyer"/>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </Border>
+
+            <!-- ROTATION ROUE SEULE (test/calibration) -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Classes="section-title" Text="ROTATION ROUE (test / calibration encodeur)"/>
+                    <Separator/>
+                    <TextBlock Foreground="#78909C" FontSize="12" TextWrapping="Wrap"
+                               Text="Fait tourner une seule roue d'un nombre de degres precis (mesure par son encodeur). Valeur negative = sens inverse."/>
+
+                    <!-- ROUE GAUCHE -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="90,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="GAUCHE" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="16" FontWeight="Bold" Foreground="#00E676"/>
+                                <TextBlock Text="degres" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding LeftWheelDegText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 180" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendLeftWheelCommand}"
+                                    Background="#00E676" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Tourner"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- ROUE DROITE -->
+                    <Border Background="#0F1923" CornerRadius="6" Padding="12">
+                        <Grid ColumnDefinitions="90,*,12,120">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="DROITE" FontFamily="Consolas, Courier New, monospace"
+                                           FontSize="16" FontWeight="Bold" Foreground="#FF4081"/>
+                                <TextBlock Text="degres" Classes="label" FontSize="10"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" Text="{Binding RightWheelDegText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="16"
+                                     Watermark="ex: 180" VerticalContentAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SendRightWheelCommand}"
+                                    Background="#FF4081" Foreground="#0F1923"
+                                    FontWeight="Bold" MinHeight="44"
+                                    HorizontalAlignment="Stretch" Content="Tourner"/>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </Border>
+
             <!-- PID YAW (MODIFIE V2.3) -->
             <Border Classes="card">
                 <StackPanel Spacing="14">

@@ -56,19 +56,17 @@ enum class MotorSide : uint8_t {
 
     constexpr int   ENCODER_PPR        = 7;
     constexpr int   ENCODER_QUADRATURE = 4;
-    constexpr int   GEAR_RATIO_LEFT    = 50;  // moteur gauche 50:1
-    constexpr int   GEAR_RATIO_RIGHT   = 50;  // moteur droit  50:1 (CH-N20-3)
-    // ── Calibration PULSES_PER_REV_RIGHT ────────────────────────────────────────────────
-    // Le rapport de réduction réel est probablement ~54.7:1 (déduit de SPEED_MAX_RPM_R=192).
-    // Pour mesurer le PPR exact : poser le robot, faire tourner la roue droite d'exactement
-    // 1 tour à la main, compter les pulses → PULSES_PER_REV_RIGHT = pulses mesurés.
-    // Un PPR sous-estimé (1400 < vrai) fait que toMM() surestime la distance droite → EKF
-    // croit que le robot vire à gauche → pidYaw pousse à droite en permanence.
-    // ────────────────────────────────────────────────────────────────────────────────────
+    constexpr int   GEAR_RATIO_LEFT    = 50;  // moteur gauche 50:1 (nominal — non calibré empiriquement)
+    constexpr int   GEAR_RATIO_RIGHT   = 50;  // moteur droit  50:1 nominal (CH-N20-3) — voir PULSES_PER_REV_RIGHT
 
     constexpr int   GEAR_RATIO         = GEAR_RATIO_LEFT;  // alias pour compatibilité
     constexpr int   PULSES_PER_REV       = ENCODER_PPR * ENCODER_QUADRATURE * GEAR_RATIO_LEFT;  // 1400
-    constexpr int   PULSES_PER_REV_RIGHT = ENCODER_PPR * ENCODER_QUADRATURE * GEAR_RATIO_RIGHT; // 1400
+
+    // ── PULSES_PER_REV_RIGHT — calibré empiriquement (pas la formule nominale) ──────────
+    // Test WHEEL:RIGHT:3600 (10 tours) : la roue s'arrête 50° avant le point de départ
+    // marqué → ratio réel = 500 / (10 - 50/360) ≈ 50.70:1 (contre 50:1 nominal, ~1.4%).
+    // PULSES_PER_REV_RIGHT = ENCODER_PPR × QUADRATURE × 50.70 ≈ 1420 (au lieu de 1400).
+    constexpr int   PULSES_PER_REV_RIGHT = 1420;
 
     constexpr float WHEEL_DIAMETER_MM      = 29.07f;  // calibré : EKF 1098mm vs 1064mm réels → ×(1064/1098)
     constexpr float WHEEL_CIRCUMFERENCE_MM = 3.14159f * WHEEL_DIAMETER_MM;

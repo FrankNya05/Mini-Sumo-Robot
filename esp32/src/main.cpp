@@ -28,7 +28,7 @@
 
 static constexpr const char* WIFI_SSID       = "S25Ultra";
 static constexpr const char* WIFI_PASS       = "sylvain123";
-static constexpr const char* MQTT_BROKER_IP  = "10.141.137.191";
+static constexpr const char* MQTT_BROKER_IP  = "10.81.23.191";
 static constexpr uint16_t    MQTT_PORT       = 1883;
 static constexpr const char* MQTT_TOPIC_PUB  = "robot/telemetry";
 static constexpr const char* MQTT_TOPIC_SUB  = "robot/cmd";
@@ -99,6 +99,17 @@ static void onPidKd(float v) {
     pidRight.setGains(g_pidKp, g_pidKi, g_pidKd);
 }
 
+// ── Gains individuels par roue (indépendants du réglage commun ci-dessus) ──
+static float g_pidLeftKp = 2.0f, g_pidLeftKi = 0.15f, g_pidLeftKd = 0.0f;
+static void onPidLeftKp(float v) { g_pidLeftKp = v; pidLeft.setGains(g_pidLeftKp, g_pidLeftKi, g_pidLeftKd); }
+static void onPidLeftKi(float v) { g_pidLeftKi = v; pidLeft.setGains(g_pidLeftKp, g_pidLeftKi, g_pidLeftKd); }
+static void onPidLeftKd(float v) { g_pidLeftKd = v; pidLeft.setGains(g_pidLeftKp, g_pidLeftKi, g_pidLeftKd); }
+
+static float g_pidRightKp = 2.0f, g_pidRightKi = 0.15f, g_pidRightKd = 0.0f;
+static void onPidRightKp(float v) { g_pidRightKp = v; pidRight.setGains(g_pidRightKp, g_pidRightKi, g_pidRightKd); }
+static void onPidRightKi(float v) { g_pidRightKi = v; pidRight.setGains(g_pidRightKp, g_pidRightKi, g_pidRightKd); }
+static void onPidRightKd(float v) { g_pidRightKd = v; pidRight.setGains(g_pidRightKp, g_pidRightKi, g_pidRightKd); }
+
 static float g_pidYawKp = 5.0f, g_pidYawKi = 0.5f, g_pidYawKd = 0.0f;
 static void onPidYawKp(float v) {
     g_pidYawKp = v;
@@ -115,8 +126,11 @@ static void onPidYawKd(float v) {
 
 CommandTaskParams cmdParams {
     &stratManager,
+    &comm,
     onStrategyCmd, onLedCmd,
     onPidKp, onPidKi, onPidKd,
+    onPidLeftKp, onPidLeftKi, onPidLeftKd,
+    onPidRightKp, onPidRightKi, onPidRightKd,
     onPidYawKp, onPidYawKi, onPidYawKd,
     onPoseResetCmd
 };

@@ -74,6 +74,51 @@ public static class CommandSerializer
         return $"PID:{parameter.Trim().ToUpperInvariant()}:{value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}";
     }
 
+    // ── PID moteurs individuels (pidLeft ou pidRight seul) ───────────────
+
+    /// <summary>
+    /// Sérialise un gain PID moteur gauche seul.
+    /// SerializePidLeft("KP", 1.5f) → "PID:LEFT:KP:1.5"
+    /// </summary>
+    public static string SerializePidLeft(string parameter, float value)
+    {
+        if (string.IsNullOrWhiteSpace(parameter))
+            throw new ArgumentException("Le paramètre PID ne peut pas être vide.", nameof(parameter));
+        return $"PID:LEFT:{parameter.Trim().ToUpperInvariant()}:{value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    /// <summary>
+    /// Sérialise un gain PID moteur droit seul.
+    /// SerializePidRight("KP", 1.5f) → "PID:RIGHT:KP:1.5"
+    /// </summary>
+    public static string SerializePidRight(string parameter, float value)
+    {
+        if (string.IsNullOrWhiteSpace(parameter))
+            throw new ArgumentException("Le paramètre PID ne peut pas être vide.", nameof(parameter));
+        return $"PID:RIGHT:{parameter.Trim().ToUpperInvariant()}:{value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    // ── Rotation d'une roue seule (test/calibration encodeur) ────────────
+
+    /// <summary>
+    /// Sérialise une rotation de la roue gauche seule, en degrés.
+    /// SerializeWheelLeft(180f) → "WHEEL:LEFT:180"
+    /// Une valeur négative fait tourner la roue dans l'autre sens.
+    /// </summary>
+    public static string SerializeWheelLeft(float degrees)
+    {
+        return $"WHEEL:LEFT:{degrees.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    /// <summary>
+    /// Sérialise une rotation de la roue droite seule, en degrés.
+    /// SerializeWheelRight(-90f) → "WHEEL:RIGHT:-90"
+    /// </summary>
+    public static string SerializeWheelRight(float degrees)
+    {
+        return $"WHEEL:RIGHT:{degrees.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
     // ── PID cap gyroscope (pidYaw) — MODIFIÉ V2.3 ────────────────────────
 
     /// <summary>

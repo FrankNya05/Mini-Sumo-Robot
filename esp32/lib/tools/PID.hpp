@@ -45,13 +45,13 @@ public:
     //  @return          Commande corrigée, clampée dans [minOut, maxOut]
 
     float compute(float measured) {
-        const uint32_t now = millis();
-        const float dt = (now - _lastTime) / 1000.0f;  // secondes
-
+        const uint32_t now = micros();
+        const float dt = (now - _lastTime) / 1000000.0f; // secondes
         // Première appel — initialiser sans pic dérivé
         if (_firstCall) {
             _lastTime   = now;
             _lastError  = _setpoint - measured;
+            _lastMeasured = measured;
             _firstCall  = false;
             return 0.0f;
         }
