@@ -952,6 +952,7 @@ void taskCommand(void* pvParameters)
                         // s'annule au lieu de gonfler artificiellement le total.
                         float    prevTheta = ctx.getPose().theta;
                         float    accum     = 0.0f;
+                        float    rateEma   = 0.0f;   // |Δθ| lissé par tick de 10 ms (rad)
                         const uint32_t tMax = millis() + 8000;
                         while (millis() < tMax) {
                             vTaskDelay(pdMS_TO_TICKS(10));
@@ -961,9 +962,46 @@ void taskCommand(void* pvParameters)
                             while (dTheta < -(float)M_PI) dTheta += 2.0f * (float)M_PI;
                             accum     += dTheta;
                             prevTheta  = theta;
+                            // Anticipation : le frein agit avec retard (période de
+                            // boucle + EKF + réponse moteur) → on déclenche quand
+                            // l'angle PRÉDIT dans BRAKE_LEAD_TICKS atteint la cible.
+                            // Vitesse lissée (EMA) pour ne pas freiner sur un pic de bruit.
+                            static constexpr float BRAKE_LEAD_TICKS = 3.0f;   // × 10 ms = 30 ms d'avance — à régler
+                            static constexpr float RATE_ALPHA       = 0.3f;
+                            rateEma = (rateEma == 0.0f) ? fabsf(dTheta)
+                                                        : rateEma + RATE_ALPHA * (fabsf(dTheta) - rateEma);
+                            const float predicted = fabsf(accum) + rateEma * BRAKE_LEAD_TICKS;
                             LOGF("[SEQ] rotation cumulee = %.1f deg\n", fabsf(accum) * RAD_TO_DEG);
-                            if (fabsf(accum) >= step.targetRad) break;
+                            if (predicted >= step.targetRad) {
+                                LOGF("[SEQ] frein a %.1f deg (vitesse %.0f deg/s)\n",
+                                     fabsf(accum) * RAD_TO_DEG, rateEma * 100.0f * RAD_TO_DEG);
+                                break;
+                            }
                         }
+
+                        // Freinage actif — sans lui, le robot glisse ~20-25° après
+                        // la coupure (inertie à PWM 180, mesuré 2026-11-21).
+                        // Consigne inverse jusqu'à ce que la rotation s'arrête ou
+                        // s'inverse, au lieu d'une durée fixe : s'adapte seul à la
+                        // vitesse de rotation et au niveau de batterie.
+                        static constexpr float    BRAKE_STOP_RAD = 0.2f * (float)DEG_TO_RAD; // Δθ/10 ms ≈ 20°/s
+                        static constexpr uint32_t BRAKE_MAX_MS   = 200;
+                        const float dir = (accum >= 0.0f) ? 1.0f : -1.0f;
+                        float brakeAccum = 0.0f;
+                        ctx.setMotorSpeeds({ -step.leftSpeed, -step.rightSpeed });
+                        const uint32_t tBrakeEnd = millis() + BRAKE_MAX_MS;
+                        while (millis() < tBrakeEnd) {
+                            vTaskDelay(pdMS_TO_TICKS(10));
+                            float theta  = ctx.getPose().theta;
+                            float dTheta = theta - prevTheta;
+                            while (dTheta >  (float)M_PI) dTheta -= 2.0f * (float)M_PI;
+                            while (dTheta < -(float)M_PI) dTheta += 2.0f * (float)M_PI;
+                            prevTheta   = theta;
+                            brakeAccum += dTheta;
+                            if (dTheta * dir < BRAKE_STOP_RAD) break;   // arrêté ou inversé
+                        }
+                        ctx.setMotorSpeeds({});
+                        LOGF("[SEQ] freinage : glisse %.1f deg\n", fabsf(brakeAccum) * RAD_TO_DEG);
                     } else {
                         vTaskDelay(pdMS_TO_TICKS(step.durationMs));
                     }
