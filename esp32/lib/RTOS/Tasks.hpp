@@ -603,6 +603,18 @@ void taskEncoders(void* pvParameters)
     lastWake = xTaskGetTickCount();   // réinitialise après la calibration
     lastMs   = millis();
 
+    // ZUPT — détection d'immobilité et ré-estimation continue des biais.
+    // La calibration au boot ne suffit pas : le biais gyro dérive avec la
+    // température (θ dérivait de ~30° robot immobile). À chaque arrêt
+    // prolongé, on sait que lacet = 0 et accélération = 0 : ce que mesurent
+    // gx et l'accéléro n'est que du biais → filtre passe-bas dessus.
+    static constexpr int   ZUPT_MIN_CYCLES = 40;      // 40 × 5 ms = 200 ms d'arrêt
+    static constexpr float ZUPT_ALPHA_GYRO = 0.005f;  // τ ≈ 1 s à 200 Hz
+    static constexpr float ZUPT_ALPHA_ACC  = 0.005f;
+    int   stillCycles    = 0;
+    bool  wasStill       = false;
+    float accelBiasMmS2  = 0.0f;
+
     for (;;)
     {
         const float deltaMs = RTOSConfig::PERIOD_ENCODER * portTICK_PERIOD_MS;
@@ -626,19 +638,58 @@ void taskEncoders(void* pvParameters)
         ctx.setEncoderData(SensorPosition::LEFT,  left);
         ctx.setEncoderData(SensorPosition::RIGHT, right);
 
-        // 3. Prédiction EKF odométrie — conversion pulses → mm par roue (PPR différents)
-        p->ekf->predict(p->left->toMM(pulsesLeft), p->right->toMM(pulsesRight));
+        // 3. Prédiction EKF — accéléromètre (v) + Δθ encodeurs, puis correction
+        //    de v par la vitesse encodeurs (rejetée si patinage détecté).
+        //    Conversion pulses → mm par roue (PPR différents).
+        SensorData imuData = ctx.getIMUData();
+        const float dl    = p->left->toMM(pulsesLeft);
+        const float dr    = p->right->toMM(pulsesRight);
+        const float dtEnc = deltaMs / 1000.0f;
+
+        // Axe longitudinal de l'accéléromètre — NON CALIBRÉ.
+        // ax porte la gravité ; l'avant est ay OU az. Pour trouver lequel :
+        // accélérer en ligne droite et regarder quel axe réagit, et avec
+        // quel signe (doit être > 0 quand le robot accélère vers l'avant).
+        static constexpr bool  ACCEL_FWD_IS_AY = true;
+        static constexpr float ACCEL_FWD_SIGN  = 1.0f;
+        // Immobilité : aucune impulsion sur les deux roues ET consigne nulle
+        // (la consigne évite de confondre « roues bloquées contre l'adversaire »
+        // avec « robot à l'arrêt »).
+        const RobotConstants::ActionCommand cmdNow = ctx.getMotorSpeeds();
+        const bool wheelsStill = pulsesLeft == 0 && pulsesRight == 0
+                              && cmdNow.leftSpeed == 0 && cmdNow.rightSpeed == 0;
+        stillCycles = wheelsStill ? min(stillCycles + 1, ZUPT_MIN_CYCLES) : 0;
+        const bool isStill = stillCycles >= ZUPT_MIN_CYCLES;
+        if (isStill != wasStill) {
+            LOGF("[ZUPT] %s — gx_bias=%.2f deg/s acc_bias=%.0f mm/s2\n",
+                 isStill ? "arret" : "mouvement", gxBiasDps, accelBiasMmS2);
+            wasStill = isStill;
+        }
+
+        float accelFwdMmS2 = 0.0f;
+        if (imuData.isValid) {
+            const float a   = ACCEL_FWD_IS_AY ? imuData.value.imu.ay : imuData.value.imu.az;
+            const float raw = ACCEL_FWD_SIGN * a * 1000.0f;   // m/s² → mm/s²
+            if (isStill) accelBiasMmS2 += ZUPT_ALPHA_ACC * (raw - accelBiasMmS2);
+            accelFwdMmS2 = isStill ? 0.0f : raw - accelBiasMmS2;
+        }
+
+        p->ekf->predict(dl, dr, accelFwdMmS2, dtEnc);
+        if (isStill) p->ekf->zeroVelocity();
+        else         p->ekf->updateOdometry(dl, dr, dtEnc);
 
         // 4. Correction EKF gyroscope
-        SensorData imuData = ctx.getIMUData();
         float gxRad = 0.0f;   // taux de lacet mesuré (rad/s) — utilisé aussi par LQR
         if (imuData.isValid) {
             uint32_t now = millis();
             float dtSec  = (now - lastMs) / 1000.0f;
             lastMs       = now;
+            // À l'arrêt, gx ne mesure que le biais → on le suit, et on ne
+            // corrige PAS θ (sinon le biais résiduel est intégré dans le cap).
+            if (isStill) gxBiasDps += ZUPT_ALPHA_GYRO * (imuData.value.imu.gx - gxBiasDps);
             static constexpr float GYRO_EKF_DEADBAND_RAD = 1.0f * (float)DEG_TO_RAD;  // ±1°/s — bruit résiduel post-calibration
             gxRad = (imuData.value.imu.gx - gxBiasDps) * DEG_TO_RAD;
-            if (fabsf(gxRad) > GYRO_EKF_DEADBAND_RAD) {
+            if (!isStill && fabsf(gxRad) > GYRO_EKF_DEADBAND_RAD) {
                 p->ekf->updateIMU(gxRad, dtSec);
             }
         }
